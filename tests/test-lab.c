@@ -72,6 +72,15 @@ void test_queue_dequeue_shutdown(void)
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+void test_create_invalid_size(void)
+{
+  queue_t q0 = queue_init(0);
+  TEST_ASSERT_TRUE(q0 == NULL);
+  queue_t qNegative1 = queue_init(-1);
+  TEST_ASSERT_TRUE(qNegative1 == NULL);
+  queue_destroy(q0);
+  queue_destroy(qNegative1);
+}
 void test_dequeue_empty_queue(void)
 {
   queue_t q = queue_init(5);
@@ -179,6 +188,7 @@ int main(void)
   RUN_TEST(test_queue_dequeue_shutdown);
 
   // New tests:
+  RUN_TEST(test_create_invalid_size);
   RUN_TEST(test_dequeue_empty_queue);
   RUN_TEST(test_shutdown_empty_queue);
   RUN_TEST(test_fill_queue_to_capacity);

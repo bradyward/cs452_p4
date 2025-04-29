@@ -14,6 +14,9 @@ struct queue
 
 queue_t queue_init(int capacity)
 {
+    if (capacity < 1) {
+        return NULL;
+    }
     // Allocate the queue
     struct queue *q = (queue_t)malloc(sizeof(struct queue));
     if (q == NULL)
