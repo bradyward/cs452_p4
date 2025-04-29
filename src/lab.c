@@ -128,8 +128,3 @@ bool is_shutdown(queue_t q)
     }
     return q->shutdown;
 }
-
-void q_peek(queue_t q)
-{
-    printf("%p\n", q->data[0]);
-}

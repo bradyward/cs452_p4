@@ -65,13 +65,6 @@ extern "C"
      */
     bool is_shutdown(queue_t q);
 
-    /**
-     * @brief Helper method to show the first element of the queue
-     * 
-     * @param q The queue
-     */
-    void q_peek(queue_t q);
-
 #ifdef __cplusplus
 } // extern "C"
 #endif
