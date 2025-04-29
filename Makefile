@@ -23,10 +23,10 @@ DEBUG ?= -g
 SANATIZE ?= -fno-omit-frame-pointer -fsanitize=address
 
 #If you need to link against a library uncomment the line below and add the library name
-#LDFLAGS ?= -pthread -lreadline
+LDFLAGS ?= -pthread
 
 #Default to building without debug flags
-all: $(TARGET_EXEC) $(TARGET_TEST)
+all: $(TARGET_EXEC) $(TARGET_TEST) 
 
 #Build with debug flags and address sanitizer
 #https://www.gnu.org/software/make/manual/make.html#Target_002dspecific

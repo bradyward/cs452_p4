@@ -1,5 +1,7 @@
 #include <stdlib.h>
 #include "lab.h"
+#include <bits/pthreadtypes.h>
+#include <pthread.h>
 
 struct queue
 {
@@ -7,6 +9,7 @@ struct queue
     int capacity;
     int size;
     bool shutdown;
+    pthread_mutex_t lock;
 };
 
 queue_t queue_init(int capacity)
@@ -19,7 +22,7 @@ queue_t queue_init(int capacity)
     }
     q->capacity = capacity;
     q->size = 0;
-    q->shutdown = true;
+    q->shutdown = false;
 
     // Allocate the queue's array
     q->data = malloc(sizeof(void *) * capacity);
@@ -28,6 +31,9 @@ queue_t queue_init(int capacity)
         free(q);
         return NULL;
     }
+
+    // Add a lock if everything creates properly
+    pthread_mutex_init(&q->lock, NULL);
 
     return q;
 }
@@ -45,35 +51,35 @@ void queue_destroy(queue_t q)
         q->data = NULL;
     }
 
+    pthread_mutex_destroy(&q->lock);
     free(q);
+    q = NULL;
 }
 
 void enqueue(queue_t q, void *data)
 {
-    if (q == NULL || data == NULL)
-    {
-        return;
-    }
+    pthread_mutex_lock(&q->lock);
 
-    if (q->size == q->capacity || q->shutdown)
+    if (q == NULL || data == NULL || q->size == q->capacity || q->shutdown)
     {
+        pthread_mutex_unlock(&q->lock);
         return;
     }
 
     // Enqueue at next open spot
     q->data[q->size] = data;
     q->size++;
+
+    pthread_mutex_unlock(&q->lock);
 }
 
 void *dequeue(queue_t q)
 {
-    if (q == NULL)
-    {
-        return NULL;
-    }
+    pthread_mutex_lock(&q->lock);
 
-    if (q->size == 0)
+    if (q == NULL || q->size == 0)
     {
+        pthread_mutex_unlock(&q->lock);
         return NULL;
     }
 
@@ -86,16 +92,23 @@ void *dequeue(queue_t q)
     }
     q->size--;
 
+    pthread_mutex_unlock(&q->lock);
+
     return removed;
 }
 
 void queue_shutdown(queue_t q)
 {
+    pthread_mutex_lock(&q->lock);
+
     if (q == NULL)
     {
+        pthread_mutex_unlock(&q->lock);
         return;
     }
     q->shutdown = true;
+
+    pthread_mutex_unlock(&q->lock);
 }
 
 bool is_empty(queue_t q)
@@ -114,4 +127,9 @@ bool is_shutdown(queue_t q)
         return NULL;
     }
     return q->shutdown;
+}
+
+void q_peek(queue_t q)
+{
+    printf("%p\n", q->data[0]);
 }
