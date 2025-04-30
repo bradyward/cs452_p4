@@ -1,5 +1,16 @@
 #include "harness/unity.h"
 #include "../src/lab.h"
+#include <pthread.h>
+#include <stdlib.h>
+#include <unistd.h>  // for usleep
+
+#define NUM_THREADS 4
+#define OPS_PER_THREAD 1000
+
+typedef struct {
+    queue_t q;
+    int start_val;
+} thread_args_t;
 
 // NOTE: Due to the multi-threaded nature of this project. Unit testing for this
 // project is limited. I have provided you with a command line tester in
@@ -179,6 +190,87 @@ void test_fill_and_drain_queue(void)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+void *thread_enqueue(void *arg) {
+  thread_args_t *args = (thread_args_t *)arg;
+  for (int i = 0; i < OPS_PER_THREAD; ++i) {
+      int *val = malloc(sizeof(int));
+      *val = args->start_val + i;
+      enqueue(args->q, val);
+  }
+  return NULL;
+}
+
+void *thread_dequeue(void *arg) {
+  thread_args_t *args = (thread_args_t *)arg;
+  int count = 0;
+  while (count < OPS_PER_THREAD) {
+      void *data = dequeue(args->q);
+      if (data != NULL) {
+          free(data);
+          ++count;
+      } else {
+          usleep(100);  // small delay to prevent tight loop
+      }
+  }
+  return NULL;
+}
+
+void test_multithreaded_enqueue(void) {
+  queue_t q = queue_init(NUM_THREADS * OPS_PER_THREAD);
+  TEST_ASSERT_NOT_NULL(q);
+
+  pthread_t threads[NUM_THREADS];
+  thread_args_t args[NUM_THREADS];
+
+  for (int i = 0; i < NUM_THREADS; ++i) {
+      args[i].q = q;
+      args[i].start_val = i * OPS_PER_THREAD;
+      pthread_create(&threads[i], NULL, thread_enqueue, &args[i]);
+  }
+
+  for (int i = 0; i < NUM_THREADS; ++i) {
+      pthread_join(threads[i], NULL);
+  }
+
+  int count = 0;
+  void *val;
+  while ((val = dequeue(q)) != NULL) {
+      count++;
+      free(val);
+  }
+
+  TEST_ASSERT_EQUAL_INT(NUM_THREADS * OPS_PER_THREAD, count);
+  queue_destroy(q);
+}
+
+void test_multithreaded_dequeue(void) {
+  queue_t q = queue_init(NUM_THREADS * OPS_PER_THREAD);
+  TEST_ASSERT_NOT_NULL(q);
+
+  // Pre-fill the queue
+  for (int i = 0; i < NUM_THREADS * OPS_PER_THREAD; ++i) {
+      int *val = malloc(sizeof(int));
+      *val = i;
+      enqueue(q, val);
+  }
+
+  pthread_t threads[NUM_THREADS];
+  thread_args_t args[NUM_THREADS];
+
+  for (int i = 0; i < NUM_THREADS; ++i) {
+      args[i].q = q;
+      pthread_create(&threads[i], NULL, thread_dequeue, &args[i]);
+  }
+
+  for (int i = 0; i < NUM_THREADS; ++i) {
+      pthread_join(threads[i], NULL);
+  }
+
+  TEST_ASSERT_TRUE(is_empty(q));
+  queue_destroy(q);
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 int main(void)
 {
   UNITY_BEGIN();
@@ -187,7 +279,7 @@ int main(void)
   RUN_TEST(test_queue_dequeue_multiple);
   RUN_TEST(test_queue_dequeue_shutdown);
 
-  // New tests:
+  // New tests
   RUN_TEST(test_create_invalid_size);
   RUN_TEST(test_dequeue_empty_queue);
   RUN_TEST(test_shutdown_empty_queue);
@@ -195,6 +287,7 @@ int main(void)
   RUN_TEST(test_enqueue_after_shutdown);
   RUN_TEST(test_enqueue_dequeue_size_behavior);
   RUN_TEST(test_fill_and_drain_queue);
-
+  RUN_TEST(test_multithreaded_enqueue);
+  RUN_TEST(test_multithreaded_dequeue);
   return UNITY_END();
 }
