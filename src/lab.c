@@ -1,6 +1,5 @@
 #include <stdlib.h>
 #include "lab.h"
-#include <bits/pthreadtypes.h>
 #include <pthread.h>
 
 struct queue
@@ -48,22 +47,29 @@ void queue_destroy(queue_t q)
         return;
     }
 
+    pthread_mutex_lock(&q->lock);
     if (q->data)
     {
         free(q->data);
         q->data = NULL;
     }
-
+    pthread_mutex_unlock(&q->lock);
     pthread_mutex_destroy(&q->lock);
+
     free(q);
     q = NULL;
+
 }
 
 void enqueue(queue_t q, void *data)
 {
+    if (q == NULL) {
+        return;
+    }
+
     pthread_mutex_lock(&q->lock);
 
-    if (q == NULL || data == NULL || q->size == q->capacity || q->shutdown)
+    if (data == NULL || q->size == q->capacity || q->shutdown)
     {
         pthread_mutex_unlock(&q->lock);
         return;
@@ -78,9 +84,13 @@ void enqueue(queue_t q, void *data)
 
 void *dequeue(queue_t q)
 {
+    if (q == NULL) {
+        return NULL;
+    }
+
     pthread_mutex_lock(&q->lock);
 
-    if (q == NULL || q->size == 0)
+    if (q->size == 0)
     {
         pthread_mutex_unlock(&q->lock);
         return NULL;
@@ -102,13 +112,13 @@ void *dequeue(queue_t q)
 
 void queue_shutdown(queue_t q)
 {
-    pthread_mutex_lock(&q->lock);
-
     if (q == NULL)
     {
-        pthread_mutex_unlock(&q->lock);
         return;
     }
+
+    pthread_mutex_lock(&q->lock);
+    
     q->shutdown = true;
 
     pthread_mutex_unlock(&q->lock);
@@ -118,16 +128,24 @@ bool is_empty(queue_t q)
 {
     if (q == NULL)
     {
-        return NULL;
+        return false;
     }
-    return q->size == 0;
+
+    pthread_mutex_lock(&q->lock);
+    const bool isEmpty = q->size == 0;
+    pthread_mutex_unlock(&q->lock);
+    return isEmpty;
 }
 
 bool is_shutdown(queue_t q)
 {
     if (q == NULL)
     {
-        return NULL;
+        return false;
     }
-    return q->shutdown;
+
+    pthread_mutex_lock(&q->lock);
+    const bool isShutdown = q->shutdown;
+    pthread_mutex_unlock(&q->lock);
+    return isShutdown;
 }
